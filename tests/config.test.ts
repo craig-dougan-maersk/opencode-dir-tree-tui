@@ -1,5 +1,7 @@
 import "./fixtures/home"
 import { expect, test } from "bun:test"
+import { homedir, tmpdir } from "node:os"
+import { basename, dirname, join } from "node:path"
 import type { Plugin } from "@opencode/plugin/tui"
 import { CONFIG_STORAGE_KEY, ConfigStore, DEFAULT_SETTINGS, projectKey } from "../src/config"
 import type { StoredConfig } from "../src/config"
@@ -11,6 +13,15 @@ function fixture() {
   const [, save] = storage.store<StoredConfig>(CONFIG_STORAGE_KEY, { initial: { projects: {} } })
   return { config, storage, save }
 }
+
+test("test process starts with an isolated home directory", () => {
+  const home = homedir()
+  expect(home).toBe(process.env.DIR_TREE_TEST_HOME)
+  expect(process.env.HOME).toBe(home)
+  expect(process.env.USERPROFILE).toBe(home)
+  expect(dirname(home)).toBe(join(tmpdir(), "opencode"))
+  expect(basename(home)).toStartWith("dir-tree-test-home-")
+})
 
 test("project settings use durable host storage; reads and the default visibility create no project entry", async () => {
   const { config, storage } = fixture()

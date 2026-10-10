@@ -11,7 +11,7 @@ try {
   await mkdir(installed, { recursive: true })
   await $`tar -xzf ${join(sandbox, packed[0].filename)} -C ${installed} --strip-components=1`
   // Preserve the node_modules path because OpenCode loads published packages there.
-  await $`bun test --conditions=browser --preload ./tests/fixtures/home.ts --preload @opentui/solid/runtime-plugin-support tests/panel.test.tsx tests/ignore-dialog.test.tsx`
+  await $`bun scripts/test.ts --preload @opentui/solid/runtime-plugin-support tests/panel.test.tsx tests/ignore-dialog.test.tsx`
     .env({ ...process.env, PLUGIN_TEST_ENTRY: pathToFileURL(join(installed, "tui.tsx")).href })
 } finally {
   await rm(sandbox, { recursive: true, force: true })

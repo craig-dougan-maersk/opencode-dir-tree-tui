@@ -38,7 +38,7 @@
   },
   "scripts": {
     "build": "bun run typecheck && bun scripts/build.ts",
-    "test": "bun test --conditions=browser --preload ./tests/fixtures/home.ts --preload @opentui/solid/preload",
+    "test": "bun scripts/test.ts --preload @opentui/solid/preload",
     "test:package": "bun run build && bun scripts/test-package.ts",
     "typecheck": "tsc --noEmit",
     "prepack": "bun run build"
