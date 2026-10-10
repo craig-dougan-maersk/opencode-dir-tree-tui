@@ -1,4 +1,28 @@
+# Dependencies and generated files
 node_modules/
 dist/
-debug.log
-docs/
+build/
+coverage/
+.cache/
+*.tgz
+*.tsbuildinfo
+
+# Local configuration and notes
+/.opencode/
+/.dirtree
+/.dirtreeignore
+/AGENTS.md
+/DECISIONS.md
+.env
+.env.*
+!.env.example
+.vscode/
+.idea/
+
+# Logs, temporary files, and OS metadata
+*.log
+*.tmp
+*.bak
+.DS_Store
+Thumbs.db
+Desktop.ini

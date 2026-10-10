@@ -10,130 +10,75 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
 </p>
 
-给 [**OpenCode**](https://opencode.ai) 的侧边栏加一棵文件树。展开目录、查看 Git 变更、打开文件，在终端里就能搞定。
+在 [OpenCode](https://opencode.ai) 终端侧栏浏览项目文件、查看 Git 变更、复制路径，并打开文件和文件夹。
 
 ![文件树演示](assets/demo.gif)
 
-## ✨ 有什么好用的
+## 📦 安装／更新／卸载
 
-- 用颜色区分文件的 Git 状态。
-- 右键或 Ctrl+点击，用系统默认程序打开文件和目录。
-- 按名称或 `*.log` 这样的通配符隐藏杂项。
-- 自动刷新，面板可以折叠，展开过的目录也会记住。
-
-## 📦 安装
-
-请根据已安装的 OpenCode 版本选择下方指导。OpenCode V1 使用固定的旧版插件，V2 使用当前版本。
-
-### 让 Agent 帮你装（推荐）
-
-把这段话发给 OpenCode 或你常用的编程 Agent：
-
-```text
-请按照这份 README 的手动安装部分安装 opencode-dir-tree-tui。先检查我已安装的 OpenCode 版本，再选择对应指导，保留已有配置：
-https://raw.githubusercontent.com/aihaipeng/opencode-dir-tree-tui/main/README.zh-CN.md
-```
-
-### 手动安装
-
-先检查你正在使用的 OpenCode 版本：
+要求 **OpenCode ≥ 2.0**，仅适用于终端界面（TUI）。
 
 ```bash
-opencode --version
+opencode plugin add opencode-dir-tree-tui
 ```
 
-| OpenCode 版本 | 插件包 | 配置文件与字段 |
+- 更新：`opencode plugin update opencode-dir-tree-tui`
+- 卸载：`opencode plugin remove opencode-dir-tree-tui`
+
+更新后若仍使用旧代码，请重启 TUI 客户端，而不是仅重启服务端。
+
+V1 用户请固定使用 `opencode-dir-tree-tui@0.5.1`，参考 [V1 说明](https://github.com/aihaipeng/opencode-dir-tree-tui/blob/v0.5.1/README.zh-CN.md)。
+
+## ⚙️ 设置
+
+运行 `/dirtree-sidebar` 打开 **Dir Tree Sidebar（目录树侧边栏）**。用 `Tab` / `Shift+Tab` 或鼠标点击切换 **Settings（设置）** 与 **Ignore Rules（忽略规则）**；`Esc` 关闭面板。
+
+| 设置 | 说明 | 可选值 |
 | --- | --- | --- |
-| `1.x`（V1） | `opencode-dir-tree-tui@0.5.1` | `~/.config/opencode/tui.json` → `plugin` |
-| `2.x`（V2） | `opencode-dir-tree-tui` | `~/.config/opencode/cli.json` → `plugins` |
+| Show file tree | 显示／隐藏文件树及标题 | `on` / `off` |
+| Open file | 用系统默认程序打开文件 | `left-click` / `middle-click` / `right-click` / `off` |
+| Copy file path | 复制文件绝对路径 | `left-click` / `middle-click` / `right-click` / `off` |
+| Open folder | 用系统默认程序打开文件夹 | `left-click` / `middle-click` / `right-click` / `off` |
+| Copy folder path | 复制文件夹绝对路径 | `left-click` / `middle-click` / `right-click` / `off` |
+| Expand/collapse folder | 展开／折叠文件夹 | `left-click` / `middle-click` / `right-click` |
 
-如果无法确定版本，请先确认再修改配置。将对应条目合并到已有文件，保留其他插件和设置；若已配置本插件，更新原条目并保留原有选项，避免重复添加。
+设置自动保存，重启后保留。鼠标绑定跨项目共用；显隐与忽略规则按项目保存，子目录会话共用所属项目的设置。面板折叠是临时状态，仅影响当前终端。
 
-#### OpenCode V2
+## 💡 注意事项
 
-在 `~/.config/opencode/cli.json` 中添加以下条目：
+### 默认鼠标操作
 
-```json
-{
-  "$schema": "https://opencode.ai/v2/cli.json",
-  "plugins": [
-    {
-      "package": "opencode-dir-tree-tui",
-      "options": {
-        "hiddenDirs": ["node_modules", "__pycache__", "*.pyc"]
-      }
-    }
-  ]
-}
-```
+| 点击位置 | 左键 | 中键 | 右键 |
+| --- | --- | --- | --- |
+| 目录 | 展开 / 折叠 | 复制绝对路径 | 用系统默认程序打开 |
+| 文件 | — | 复制绝对路径 | 用系统默认程序打开 |
 
-OpenCode 会自动从 npm 下载，并自动重载受监控的配置改动。
+终端必须转发中键，不能用它粘贴；SSH 复制路径需要终端支持 OSC 52。
 
-#### OpenCode V1
+### Git 颜色
 
-在 `~/.config/opencode/tui.json` 中，将固定版本和选项放在嵌套数组里：
-
-```json
-{
-  "$schema": "https://opencode.ai/tui.json",
-  "plugin": [
-    [
-      "opencode-dir-tree-tui@0.5.1",
-      {
-        "hiddenDirs": ["node_modules", "__pycache__", ".git"]
-      }
-    ]
-  ]
-}
-```
-
-重启 OpenCode 后会自动下载并加载插件。使用 V1 时，即使出现更新提示也请保留 `@0.5.1`，不带版本号会安装面向 V2 的版本。
-
-下方使用说明面向 V2。V1 的 `hiddenDirs` 只支持精确名称，其他功能请参考 [V1 使用说明](https://github.com/aihaipeng/opencode-dir-tree-tui/blob/v0.5.1/README.zh-CN.md)。
-
-## 🖱️ 怎么点
-
-| 操作 | 效果 |
+| 颜色 | 状态 |
 | --- | --- |
-| 点击目录 | 展开 / 折叠 |
-| 右键或 Ctrl+点击文件、目录 | 用系统默认程序打开 |
-| 点击 `Dir Tree` | 收起 / 展开面板 |
+| 主题强调色 | 目录 |
+| 绿色 | 新增 `A`、未跟踪 `??`、重命名 `R`、复制 `C` |
+| 黄色 | 修改 `M`、文件类型改变 `T` |
+| 红色 | 删除 `D`、合并冲突 `UU` / `AA` / `DD` 等 |
+| 灰色 | Git 忽略 `!!`，不自动隐藏 |
 
-Git 状态着色和系统默认程序打开操作在**运行 TUI 的本机**执行。远程工作区路径若无法在本机访问，文件树仍可列出文件，但这两项功能可能不可用。
+有变更的文件还会显示 `M`、`??`、`MM` 等 Git 状态标记。
 
-## 🧹 隐藏杂项
+### 忽略规则
 
-上面配置里的 `hiddenDirs` 对**文件和目录都生效**。不写或设为 `[]`，就显示服务端返回的所有条目，包括 gitignore 忽略的文件。
+规则遵循 `.gitignore` 语法，需要本机可用的 `git` 命令。
 
-| 规则 | 匹配内容 |
+| 规则示例 | 效果 |
 | --- | --- |
-| `node_modules` | 名称完全相同的条目 |
-| `*.log` | 以 `.log` 结尾的名称 |
-| `.env*` | `.env`、`.env.local` 等 |
-| `temp?` | `temp1`、`tempA` 等 |
+| `node_modules/` | 隐藏任意层级的 `node_modules` 目录 |
+| `/dist/` | 仅隐藏项目根目录下的 `dist` 目录 |
+| `*.log` | 隐藏任意层级以 `.log` 结尾的文件或目录 |
+| `!keep.log` | 放在 `*.log` 后，恢复显示 `keep.log` |
 
-按完整名称匹配，区分大小写，任意层级都生效。`*` 表示零个或多个字符（包括开头的点），`?` 表示一个字符；其余字符按字面匹配。不支持路径模式、否定规则、字符组或读取 `.gitignore`。隐藏只影响文件树显示。
+规则只隐藏文件树条目，不改变 Git 追踪，也不导入 `.gitignore`。恢复子项前，其父目录必须可见。
 
-## 🔧 几个小提示
-
-- **没看到文件树？** 检查 OpenCode 版本和插件配置，然后重启。需要排查加载问题时，启用 `OPENCODE_LOG_LEVEL=DEBUG`，在 `~/.local/share/opencode/log/opencode.log` 中找 `stage=setup` + `opencode-dir-tree-tui`。
-- **Ctrl+点击没反应？** 可能是终端不转发修饰键，试试右键。
-- **没有 Git 颜色？** 检查 `git` 是否可用，以及当前目录是否在 Git 仓库里。状态色是固定的 VS Code Git 装饰色（绿=新增、黄=修改、红=删除），不跟随主题。
-- **改动没生效？** V2 会自动重载受监控的插件和配置文件；未被监控的本地依赖可能仍需重启。
-
-## 🛠️ 开发
-
-想改插件代码？克隆仓库，再装好开发工具需要的 [Bun](https://bun.sh)：
-
-```bash
-git clone https://github.com/aihaipeng/opencode-dir-tree-tui.git
-cd opencode-dir-tree-tui
-bun install
-bun run typecheck
-bun run test
-bun run test:package
-```
-
-作为本地插件加载仓库前，请先运行 `bun run build`。npm 发布包包含预编译的 Solid 代码，确保点击后目录树能更新。`bun run test:package` 会从 `node_modules` 路径测试实际 npm 压缩包。
-
-[插件安装说明](https://opencode.ai/v2/docs/cli/plugins) · [V2 插件 API](https://opencode.ai/v2/docs/build/plugins/cli) · [MIT 许可证](LICENSE)
+- 面板展开时，文件变化会触发刷新，也会每 10 秒刷新一次；其他 TUI 保存的规则在刷新后生效。
+- Git 功能和默认程序打开要求工作区路径在本机可访问。

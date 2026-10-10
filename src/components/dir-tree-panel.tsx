@@ -1,53 +1,33 @@
 /** @jsxImportSource @opentui/solid */
 
-import { For, Show, createMemo } from "solid-js"
+import { For, Show, createMemo, onCleanup } from "solid-js"
 import type { Accessor } from "solid-js"
 import { spawn } from "node:child_process"
+import { join } from "node:path"
 import type { Plugin } from "@opencode/plugin/tui"
-import { MouseButton, RGBA } from "@opentui/core"
+import { MouseButton, RGBA, createClipboard, createHostClipboard, createRendererClipboardAdapter } from "@opentui/core"
 import type { MouseEvent } from "@opentui/core"
 import type { GitStatus, TreeStore, TreeNode } from "../tree"
+import { MOUSE_ACTIONS } from "../config"
 
 /** Nested semantic tokens replaced V1's flat TuiThemeCurrent. */
 type Theme = Plugin.Context["theme"]
-type ThemeMode = Plugin.Context["themeMode"]
-
-/**
- * Fixed directory blue, following the ls / file-manager convention. Same
- * fixed-color rationale as GIT_STATUS_COLORS below: directories must stay
- * recognizable under every theme and never collide with the green/yellow/red
- * git states. Dark uses VS Code's classic blue, light GitHub's accent blue —
- * mid-tone values proven readable on their backgrounds (not neon, not muddy).
- */
-export const DIR_COLORS: Record<ThemeMode, RGBA> = {
-  dark: RGBA.fromHex("#569cd6"),
-  light: RGBA.fromHex("#0969da"),
-}
-
-/**
- * Fixed VS Code Git status colors (added = green, modified = yellow,
- * deleted = red), not theme feedback tokens: states must stay recognizable
- * under every theme. Dark uses the bright VS Code family values; light the
- * official light gitDecoration defaults.
- */
-export const GIT_STATUS_COLORS: Record<ThemeMode, Record<GitStatus, RGBA>> = {
-  dark: {
-    added: RGBA.fromHex("#73c991"),
-    modified: RGBA.fromHex("#cca700"),
-    deleted: RGBA.fromHex("#f14c4c"),
-  },
-  light: {
-    added: RGBA.fromHex("#388138"),
-    modified: RGBA.fromHex("#895503"),
-    deleted: RGBA.fromHex("#ad0707"),
-  },
+/** VS Code-derived palette: one green and one red, fixed across themes/modes. */
+const GIT_STATUS_COLORS: Record<GitStatus, RGBA> = {
+  added: RGBA.fromHex("#73c991"),
+  untracked: RGBA.fromHex("#73c991"),
+  renamed: RGBA.fromHex("#73c991"),
+  modified: RGBA.fromHex("#e2c08d"),
+  deleted: RGBA.fromHex("#c74e39"),
+  conflicting: RGBA.fromHex("#c74e39"),
+  ignored: RGBA.fromHex("#8c8c8c"),
 }
 
 /** Resolve when the launcher starts, or reject if it cannot be spawned. */
 function openPath(absolutePath: string): Promise<void> {
   const cmd =
     process.platform === "win32"
-      ? [process.env.ComSpec ?? "cmd.exe", "/c", "start", "", absolutePath.replaceAll("/", "\\")]
+      ? [join(process.env.SystemRoot ?? "C:\\Windows", "explorer.exe"), absolutePath.replaceAll("/", "\\")]
       : [process.platform === "darwin" ? "open" : "xdg-open", absolutePath]
   return new Promise((resolve, reject) => {
     try {
@@ -66,13 +46,17 @@ function openPath(absolutePath: string): Promise<void> {
 interface DirTreePanelProps {
   store: TreeStore
   theme: Accessor<Theme>
-  themeMode: Accessor<ThemeMode>
   collapsed: Accessor<boolean>
   onToggle: () => void
 }
 
 export function DirTreePanel(props: DirTreePanelProps) {
   const rows = createMemo(() => props.store.visibleRows())
+  const clipboard = createClipboard({
+    host: createHostClipboard(),
+    terminal: createRendererClipboardAdapter(props.store.context.renderer),
+  })
+  onCleanup(() => { void clipboard.dispose() })
 
   /** indent + expand marker, then the name in one colored run. */
   const rowText = (node: TreeNode, depth: number): string => {
@@ -82,41 +66,79 @@ export function DirTreePanel(props: DirTreePanelProps) {
   }
 
   const rowColor = (node: TreeNode): RGBA => {
-    // Directories use the fixed blue above (text.muted proved too dim to
-    // separate from the background); files in the base text color, fixed
-    // VS Code git colors on top.
-    if (node.isDir) return DIR_COLORS[props.themeMode()]
+    if (node.isDir) return props.theme().text.formfield.selected
     const status = props.store.gitStatus(node)
-    return status ? GIT_STATUS_COLORS[props.themeMode()][status] : props.theme().text.base
+    return status ? GIT_STATUS_COLORS[status] : props.theme().text.base
   }
+
+  const showError = (message: string, error: unknown) => props.store.context.ui.toast.show({
+    variant: "error",
+    title: "Dir Tree",
+    message: `${message}: ${error instanceof Error ? error.message : String(error)}`,
+    duration: 5000,
+  })
+
+  const showSuccess = (message: string) => props.store.context.ui.toast.show({
+    variant: "success",
+    title: "Dir Tree",
+    message,
+    duration: 1500,
+  })
 
   const open = (node: TreeNode) => {
     void openPath(node.absolute).then(
-      () => props.store.context.ui.toast.show({
-        variant: "info",
-        title: "Dir Tree",
-        message: `Launched ${node.name}`,
-        duration: 1500,
-      }),
-      (error: unknown) => props.store.context.ui.toast.show({
-        variant: "error",
-        title: "Dir Tree",
-        message: `Could not open ${node.name}: ${error instanceof Error ? error.message : String(error)}`,
-        duration: 5000,
-      }),
+      () => showSuccess(node.isDir ? "Opening folder" : "Opening file"),
+      (error: unknown) => showError(`Could not open ${node.name}`, error),
     )
   }
 
-  const onRowMouseDown = (event: MouseEvent, node: TreeNode) => {
-    // Only handle clicks inside the tree; stop the global text-selection
-    // system (and its ctrl+click select-all gesture) from consuming this.
-    event.preventDefault()
+  const openProject = async (copy = false) => {
+    try {
+      const location = props.store.context.location
+      if (!location) throw new Error("Workspace is not available")
+      const info = await props.store.context.client.location.get({ location })
+      if (copy) {
+        await copyPath({
+          name: "project folder", path: "", isDir: true,
+          absolute: process.platform === "win32" ? info.project.directory.replaceAll("\\", "/") : info.project.directory,
+        })
+      } else {
+        await openPath(info.project.directory)
+        showSuccess("Opening project folder")
+      }
+    } catch (error) {
+      showError(copy ? "Could not copy project directory" : "Could not open project directory", error)
+    }
+  }
 
-    if (event.button === MouseButton.RIGHT ||
-      (event.button === MouseButton.LEFT && event.modifiers?.ctrl)) {
-      open(node)
-    } else if (event.button === MouseButton.LEFT && node.isDir) {
-      props.store.toggle(node.path)
+  const copyPath = async (node: TreeNode) => {
+    try {
+      const result = await clipboard.writeText(node.absolute, { destination: "best-available" })
+      if (result.host.status !== "written" && result.terminal.status !== "attempted") {
+        throw result.host.status === "failed" ? result.host.error : new Error("Clipboard is not available")
+      }
+      showSuccess(result.host.status === "written" ? "Path copied" : "Copy request sent")
+    } catch (error) {
+      showError(`Could not copy ${node.name}`, error)
+    }
+  }
+
+  const mouseActions = (event: MouseEvent, isDir: boolean) => {
+    const button = event.button === MouseButton.LEFT ? "left"
+      : event.button === MouseButton.MIDDLE ? "middle"
+        : event.button === MouseButton.RIGHT ? "right" : undefined
+    if (!button) return []
+    const bindings = props.store.mouseBindings()
+    return MOUSE_ACTIONS.filter(({ id, target }) => target === (isDir ? "folder" : "file") && bindings[id] === button)
+  }
+
+  const onRowMouseDown = (event: MouseEvent, node: TreeNode) => {
+    // Keep tree clicks from triggering the global text-selection system.
+    event.preventDefault()
+    for (const { id } of mouseActions(event, node.isDir)) {
+      if (id === "openFile" || id === "openFolder") open(node)
+      else if (id === "copyFilePath" || id === "copyFolderPath") void copyPath(node)
+      else if (id === "toggleFolder") props.store.toggle(node.path)
     }
   }
 
@@ -125,9 +147,16 @@ export function DirTreePanel(props: DirTreePanelProps) {
   return (
     <box flexDirection="column">
       <box flexDirection="row" onMouseDown={(event) => {
-        if (event.button !== MouseButton.LEFT) return
         event.preventDefault()
-        props.onToggle()
+        if (event.button === MouseButton.LEFT || event.button === MouseButton.RIGHT) {
+          props.onToggle()
+          return
+        }
+        for (const { id } of mouseActions(event, true)) {
+          if (id === "openFolder") void openProject()
+          else if (id === "copyFolderPath") void openProject(true)
+          else if (id === "toggleFolder") props.onToggle()
+        }
       }}>
         <text style={{ fg: props.theme().text.base }}>
           <strong>{title()}</strong>
@@ -142,9 +171,14 @@ export function DirTreePanel(props: DirTreePanelProps) {
         <For each={rows()} fallback={<text style={{ fg: props.theme().text.muted }}>No files listed</text>}>
           {(row) => (
             <box onMouseDown={(event) => onRowMouseDown(event, row.node)} flexDirection="row">
-              <text width="100%" wrapMode="none" truncate style={{ fg: rowColor(row.node) }}>
+              <text flexGrow={1} flexShrink={1} minWidth={0} wrapMode="none" truncate style={{ fg: rowColor(row.node) }}>
                 {rowText(row.node, row.depth)}
               </text>
+              <Show when={!row.node.isDir && props.store.gitStatusCode(row.node)}>
+                {(code) => <text width={2} flexShrink={0} marginLeft={1} textAlign="right" wrapMode="none" style={{ fg: rowColor(row.node) }}>
+                  {code()}
+                </text>}
+              </Show>
             </box>
           )}
         </For>
