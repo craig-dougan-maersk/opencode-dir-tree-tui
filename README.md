@@ -29,6 +29,18 @@ If an update is not reflected, restart the TUI client, not just the server.
 
 On V1, pin `opencode-dir-tree-tui@0.5.1` and see the [V1 guide](https://github.com/aihaipeng/opencode-dir-tree-tui/blob/v0.5.1/README.md).
 
+### Collapsed by default
+
+The panel starts collapsed so the sidebar stays quiet; click the header arrow to expand it. Pass the option as `false` to start expanded:
+
+```jsonc title="opencode.jsonc"
+{
+  "plugins": [
+    { "package": "opencode-dir-tree-tui", "options": { "collapsedByDefault": true } }
+  ]
+}
+```
+
 ## ⚙️ Settings
 
 Run `/dirtree-sidebar` to open **Dir Tree Sidebar**. Use `Tab` / `Shift+Tab` or click to switch between **Settings** and **Ignore Rules**; `Esc` closes the panel.

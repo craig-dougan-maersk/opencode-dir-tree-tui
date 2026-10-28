@@ -37,11 +37,11 @@
     "opencode": ">=2.0.0"
   },
   "scripts": {
-    "build": "bun run typecheck && bun scripts/build.ts",
     "test": "bun scripts/test.ts --preload @opentui/solid/preload",
-    "test:package": "bun run build && bun scripts/test-package.ts",
+    "test:package": "bun run compile && bun scripts/test-package.ts",
     "typecheck": "tsc --noEmit",
-    "prepack": "bun run build"
+    "compile": "bun run typecheck && bun scripts/build.ts",
+    "prepublishOnly": "bun run compile"
   },
   "dependencies": {
     "@opencode/plugin": "^2.0.16"

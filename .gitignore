@@ -1,6 +1,5 @@
 # Dependencies and generated files
 node_modules/
-dist/
 build/
 coverage/
 .cache/
