@@ -72,6 +72,8 @@ test.each([".dirtreeignore", join(".opencode", ".dirtreeignore")])("real panel h
   const context = {
     get location() { return location() },
     renderer,
+    // The panel ships collapsed by default; these suites drive the expanded tree.
+    options: { collapsedByDefault: false },
     storage: { memory: makeStorage, store: makeDurableStorage() },
     themeMode: "dark",
     theme,
@@ -312,7 +314,7 @@ test("session or workspace switches re-read the new directory immediately", { ti
   const context = {
     location: { get directory() { return directory() } },
     keymap: { layer: () => {} },
-    options: {},
+    options: { collapsedByDefault: false },
     storage: { memory: makeStorage, store: makeDurableStorage() },
     themeMode: "dark",
     theme,
@@ -375,7 +377,7 @@ test("collapsing the panel in one terminal leaves other terminals expanded", asy
     const context = {
       location: { directory: tmpdir() },
       keymap: { layer: () => {} },
-      options: {},
+      options: { collapsedByDefault: false },
       storage: {
         memory: makeStorage,
         store: (key: string, options: { initial: object }) => {
@@ -435,6 +437,7 @@ test("global overlapping bindings control file/folder actions while header left/
   const context = {
     location: { directory: project },
     renderer: { capabilities: { remote: false, osc52_support: "unsupported" } },
+    options: { collapsedByDefault: false },
     storage: {
       memory: (key: string, options: { initial: object }) => {
         if (!memory.has(key)) memory.set(key, makeStorage(key, options))
@@ -682,6 +685,7 @@ test("folder colors follow live themes while Git colors stay fixed in both modes
     const context = {
       location: { directory: project },
       renderer: { capabilities: { remote: false, osc52_support: "unsupported" } },
+      options: { collapsedByDefault: false },
       storage: { memory: makeStorage, store: makeDurableStorage() },
       get themeMode() { return mode() },
       get theme() {
@@ -772,6 +776,47 @@ test("folder colors follow live themes while Git colors stay fixed in both modes
     view?.renderer.destroy()
     clipboardFactory?.mockRestore()
     mock.module("node:child_process", () => actualChildProcess)
+    rmSync(project, { recursive: true, force: true })
+  }
+})
+
+test("panel ships collapsed by default and expands on demand", async () => {
+  // Default behaviour: with no collapsedByDefault option the panel starts
+  // collapsed, so the sidebar stays quiet until the user opts in.
+  const project = mkdtempSync(join(tmpdir(), "dir-tree-default-"))
+  mkdirSync(join(project, "src"), { recursive: true })
+  writeFileSync(join(project, "readme.md"), "# readme\n")
+  let render!: () => any
+  const context = {
+    location: { directory: project },
+    keymap: { layer: () => {} },
+    options: {},
+    storage: { memory: makeStorage, store: makeDurableStorage() },
+    themeMode: "dark",
+    theme,
+    client: {
+      location: { get: async () => ({ project: { directory: project } }) },
+      file: { list: async () => ({ data: [{ path: "src/", type: "directory" }, { path: "readme.md", type: "file" }] }) },
+    },
+    data: { on: () => () => {} },
+    ui: {
+      slot: (slotOptions: { render: () => any }) => { render = slotOptions.render; return () => {} },
+      toast: { show: () => {} },
+    },
+  } as unknown as Plugin.Context
+  const cleanup = plugin.setup!(context) as () => void
+  const view = await testRender(() => <box width="100%" height="8"><scrollbox>{render()}</scrollbox></box>, {
+    width: 40, height: 10,
+  })
+  try {
+    // The collapsed header is the observable default. Toggle interaction is
+    // covered by "collapsing the panel in one terminal…".
+    await view.waitForFrame((frame) => frame.includes("▶ Dir Tree"))
+    expect(view.captureCharFrame()).toContain("▶ Dir Tree")
+    expect(view.captureCharFrame()).not.toContain("▼ Dir Tree")
+  } finally {
+    cleanup()
+    view.renderer.destroy()
     rmSync(project, { recursive: true, force: true })
   }
 })

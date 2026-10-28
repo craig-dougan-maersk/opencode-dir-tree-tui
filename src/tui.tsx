@@ -18,7 +18,7 @@ export default Plugin.define({
     // Collapse is per-terminal view state: keep it in memory, which the host
     // scopes to this TUI (it survives plugin reloads, dies with the TUI).
     const [panel, updatePanel] = context.storage.memory(STORAGE_PANEL, {
-      initial: { collapsed: false },
+      initial: { collapsed: context.options?.collapsedByDefault !== false },
     })
     const collapsed = () => panel.collapsed
     const togglePanel = () => {

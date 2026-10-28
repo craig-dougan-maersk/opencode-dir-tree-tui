@@ -59,6 +59,9 @@ test.each([
     let closeDialog: (() => void) | undefined
     const context = {
       location: { directory: project },
+      // The panel ships collapsed by default; these suites drive the expanded
+      // tree, so opt out explicitly.
+      options: { collapsedByDefault: false },
       storage: {
         memory: (key: string, options: { initial: object }) => {
           if (!memory.has(key)) memory.set(key, makeStorage(key, options))
